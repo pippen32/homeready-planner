@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HomeReady Planner — Planificador de tu primera casa</title>
+<!--
+  FAMILIA VISUAL: «CUADERNO DE PLANOS — CASA EN CONSTRUCCIÓN»
+  Papel de plano azul con retícula milimétrica blanca, líneas de cota y medidas,
+  bloques de título de plano (title block) como en los planos de arquitectura,
+  y la casa que se construye por etapas (cimientos → paredes → techo → llaves)
+  a medida que avanza el ahorro. Estructura: PLANIFICADOR DE OBRA — la calculadora
+  es la "mesa de cálculo del plano", el ahorro es la "línea de avance de obra" y el
+  proceso de compra es el "cronograma de construcción" con fechas.
+  Distinta a DispatchDesk («Cabina Nocturna», tablero oscuro de camión) y a ExamSim.
+-->
+<style>
+:root{
+  --plano:#17457a; --plano2:#1d5a9e; --papel:#f4f8fc; --tinta:#12365e;
+  --linea:#bcd3ea; --cota:#e8a33d; --cota2:#c77f1a; --verde:#2e9e5b;
+  --rojo:#d64541; --gris:#5b7186; --blanco:#fff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--plano);color:var(--tinta);min-height:100vh;
+  background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px);
+  background-size:22px 22px,22px 22px,110px 110px,110px 110px}
+button{cursor:pointer;font-family:inherit}
+input,select{font-family:inherit;background:var(--blanco);color:var(--tinta);border:1.5px solid var(--linea);border-radius:6px;padding:8px 10px;font-size:14px;width:100%}
+input:focus,select:focus{outline:2px solid var(--cota);border-color:var(--cota)}
+label{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--gris);display:block;margin:10px 0 4px;font-weight:700}
+.wrap{max-width:1240px;margin:0 auto;padding:14px}
+/* Title block de plano */
+.titleblock{background:var(--papel);border:3px solid var(--tinta);display:flex;flex-wrap:wrap;gap:0;box-shadow:6px 6px 0 rgba(0,0,0,.25)}
+.tb-cell{border-right:2px solid var(--tinta);padding:12px 16px}
+.tb-cell:last-child{border-right:none}
+.tb-cell small{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gris);font-weight:700}
+.logo{font-size:26px;font-weight:900;color:var(--tinta)} .logo span{color:var(--cota2)}
+.sub{font-size:14px;color:var(--gris)}
+.precio{font-size:22px;font-weight:900;color:var(--verde)}
+.btn{background:var(--cota);color:#231600;border:2px solid var(--tinta);border-radius:6px;padding:10px 16px;font-weight:800;font-size:14px;box-shadow:3px 3px 0 var(--tinta)}
+.btn:hover{transform:translate(-1px,-1px)} .btn.verde{background:var(--verde);color:#fff}
+.btn.ghost{background:var(--blanco);color:var(--tinta);box-shadow:none}
+.legal{background:#fff8e6;border:2px dashed var(--cota2);border-radius:8px;padding:10px 14px;font-size:13px;margin:14px 0;color:#5c4300}
+.grid{display:grid;grid-template-columns:400px 1fr;gap:16px;margin-top:4px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.hoja{background:var(--papel);border:2.5px solid var(--tinta);border-radius:4px;padding:18px;box-shadow:5px 5px 0 rgba(0,0,0,.22);margin-bottom:16px;position:relative}
+.hoja h2{font-size:19px;border-bottom:2.5px solid var(--tinta);padding-bottom:8px;margin-bottom:6px}
+.hoja h2 .num{background:var(--tinta);color:#fff;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;margin-right:8px;vertical-align:2px}
+.cota-line{border-top:2px dashed var(--cota2);margin:14px 0;position:relative}
+.resultado{background:#eaf3ff;border:2px solid var(--plano2);border-radius:8px;padding:14px;margin-top:14px}
+.resultado .grande{font-size:32px;font-weight:900;color:var(--plano)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+td,th{padding:6px 8px;border-bottom:1px solid var(--linea);text-align:left} td:last-child{text-align:right;font-weight:700}
+.barra-obra{background:#dcebfb;border:2px solid var(--tinta);border-radius:20px;height:34px;overflow:hidden;position:relative}
+.barra-obra>div{height:100%;background:repeating-linear-gradient(45deg,var(--cota) 0 14px,#f2b95c 14px 28px);transition:width .6s}
+.barra-obra b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--tinta)}
+.etapas{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;font-weight:700;color:var(--gris);text-align:center}
+.etapas div{flex:1} .etapas .on{color:var(--cota2)}
+.casa{font-size:15px;background:#fff;border:1.5px dashed var(--plano2);border-radius:8px;padding:10px 12px;margin-top:10px}
+.medidor{height:26px;border:2px solid var(--tinta);border-radius:14px;background:linear-gradient(90deg,#d64541 0 33%,#e8a33d 33% 66%,#2e9e5b 66% 100%);position:relative;margin:12px 0 4px}
+.medidor .aguja{position:absolute;top:-7px;width:4px;height:38px;background:var(--tinta);border-radius:2px;transition:left .5s}
+.pregunta{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--linea);font-size:14px}
+.pregunta input{width:20px;height:20px;margin-top:2px;accent-color:var(--verde)}
+.step{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--linea);align-items:flex-start}
+.step input[type=checkbox]{width:22px;height:22px;accent-color:var(--verde);margin-top:2px}
+.step.done .st{text-decoration:line-through;color:var(--gris)}
+.step .st{font-weight:700;font-size:15px} .step .sd{font-size:13px;color:var(--gris)}
+.step input[type=date]{width:170px}
+.badge{display:inline-block;background:var(--verde);color:#fff;font-size:11px;font-weight:800;border-radius:10px;padding:2px 9px;margin-left:6px}
+.badge.lock{background:var(--rojo)}
+.lockbox{background:#fdeceb;border:2px dashed var(--rojo);border-radius:8px;padding:12px;font-size:14px;margin-top:12px}
+footer{color:#dbeafe;font-size:12px;text-align:center;padding:18px 10px 26px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.kpi{background:#fff;border:2px solid var(--tinta);border-radius:8px;padding:10px;text-align:center}
+.kpi b{display:block;font-size:20px;color:var(--plano)} .kpi span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== TITLE BLOCK DEL PLANO ===== -->
+  <div class="titleblock">
+    <div class="tb-cell" style="flex:2;min-width:260px">
+      <small>Proyecto · Plano Nº 001 — Primera Casa</small>
+      <div class="logo">HomeReady <span>Planner</span></div>
+      <div class="sub">Planificador de tu primera casa — planifica durante meses, paso a paso, como se construye una casa: con plano, medidas y cronograma.</div>
+    </div>
+    <div class="tb-cell" style="min-width:210px">
+      <small>Prueba gratis · datos de ejemplo funcionando</small>
+      <div style="font-weight:800">Familia Rivera (ejemplo) ya cargada ↓</div>
+      <div style="font-size:13px;color:var(--gris)">Calculadora corrida · meta de ahorro activa · checklist en curso</div>
+    </div>
+    <div class="tb-cell" style="min-width:190px">
+      <small>Versión completa · pago único</small>
+      <div class="precio">$19.99</div>
+      <div style="font-size:13px">Con programas de asistencia por estado: <b>$34.99</b></div>
+      <button class="btn" onclick="document.getElementById('activar').scrollIntoView({behavior:'smooth'})">Activar versión completa</button>
+    </div>
+  </div>
+
+  <div class="legal">⚖️ <b>Línea legal:</b> HomeReady Planner es una <b>herramienta educativa de planificación</b>. <b>No es asesoría hipotecaria ni una cotización de préstamo.</b> Todos los números son <b>estimados</b> para ayudarte a planificar; las tasas, impuestos y seguros reales varían por estado, prestamista y tu perfil. Confirma siempre las cifras finales con un prestamista autorizado.</div>
+
+  <div class="grid">
+    <!-- ===== COLUMNA IZQUIERDA: MESA DE CÁLCULO ===== -->
+    <div>
+      <div class="hoja">
+        <h2><span class="num">1</span>Calculadora: ¿cuánto puedes pagar?</h2>
+        <p style="font-size:13px;color:var(--gris)">Regla clásica 28/36: la vivienda no debe pasar del 28% de tu ingreso bruto mensual, y vivienda + deudas no deben pasar del 36%.</p>
+        <label>Ingreso bruto anual del hogar ($)</label>
+        <input type="number" id="ingreso" value="68000" min="0" oninput="calcular()">
+        <label>Deudas mensuales actuales ($ — tarjetas, carro, préstamos)</label>
+        <input type="number" id="deudas" value="380" min="0" oninput="calcular()">
+        <label>Enganche (down payment) que planeas dar ($)</label>
+        <input type="number" id="enganche" value="20000" min="0" oninput="calcular()">
+        <label>Tasa de interés estimada (% anual)</label>
+        <input type="number" id="tasa" value="6.5" step="0.05" min="0" oninput="calcular()">
+        <label>Plazo (años)</label>
+        <select id="plazo" onchange="calcular()"><option>30</option><option>20</option><option>15</option></select>
+        <label>Impuestos a la propiedad estimados (% del precio / año)</label>
+        <input type="number" id="impuestos" value="1.1" step="0.1" min="0" oninput="calcular()">
+        <label>Seguro de la casa estimado ($ / mes)</label>
+        <input type="number" id="seguro" value="180" min="0" oninput="calcular()">
+        <div class="resultado">
+          <small style="letter-spacing:.1em;font-weight:800;color:var(--gris)">PRECIO MÁXIMO ESTIMADO DE CASA</small>
+          <div class="grande" id="rPrecio">$0</div>
+          <table>
+            <tr><td>Pago mensual máximo de vivienda (el menor de 28% / 36%−deudas)</td><td id="rCap">$0</td></tr>
+            <tr><td>Préstamo estimado (precio − enganche)</td><td id="rPrestamo">$0</td></tr>
+            <tr><td>Capital + interés (mensual)</td><td id="rPI">$0</td></tr>
+            <tr><td>Impuestos (mensual)</td><td id="rTax">$0</td></tr>
+            <tr><td>Seguro (mensual)</td><td id="rIns">$0</td></tr>
+            <tr><td>PMI estimado si enganche &lt; 20% (mensual)</td><td id="rPMI">$0</td></tr>
+            <tr><td><b>Pago mensual total estimado</b></td><td id="rTotal">$0</td></tr>
+          </table>
+          <p id="rNota" style="font-size:12px;color:var(--gris);margin-top:8px"></p>
+        </div>
+      </div>
+
+      <div class="hoja" id="activar">
+        <h2><span class="num">★</span>Activar versión completa</h2>
+        <p style="font-size:14px"><b>Gratis:</b> calculadora + plan de ahorro + medidor de crédito + checklist, con 1 plan guardado.</p>
+        <p style="font-size:14px;margin-top:6px"><b>Completo — $19.99 pago único:</b> planes ilimitados guardados, exportar/importar tu plan (JSON) y cronograma imprimible.</p>
+        <p style="font-size:14px;margin-top:6px"><b>Completo + Asistencia — $34.99 pago único:</b> todo lo anterior + <b>módulo de programas de asistencia por estado</b> (guía de programas de ayuda para el enganche y costos de cierre, con dónde verificarlos oficialmente).</p>
+        <p style="font-size:13px;color:var(--gris);margin-top:8px">Para comprar, escribe a <b>swingbravo@gmail.com</b> con el asunto «HomeReady Planner» indicando el nivel; recibes tu código de activación por email tras el pago. Sin enlaces falsos: el producto en Payhip está en preparación.</p>
+        <label>Código de activación</label>
+        <input id="codigo" placeholder="HR-PRO-… o HR-PLUS-…">
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn verde" onclick="activarCodigo()">Activar</button>
+          <button class="btn ghost" onclick="exportar()">⬇ Exportar mi plan</button>
+          <button class="btn ghost" onclick="document.getElementById('imp').click()">⬆ Importar plan</button>
+          <input type="file" id="imp" accept=".json" style="display:none" onchange="importar(event)">
+        </div>
+        <p id="licMsg" style="font-size:13px;margin-top:8px;font-weight:700"></p>
+        <div id="moduloEstados" class="lockbox">
+          🔒 <b>Módulo de programas de asistencia por estado</b> — bloqueado. Se desbloquea con el nivel de <b>$34.99</b>: guía por estado de programas de ayuda para enganche/cierre (qué verificar, requisitos típicos y la fuente oficial donde confirmarlo). Recuerda: los programas cambian; verifica siempre en la agencia estatal de vivienda de tu estado.
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== COLUMNA DERECHA: AVANCE DE OBRA ===== -->
+    <div>
+      <div class="hoja">
+        <h2><span class="num">2</span>Plan de ahorro del enganche — línea de avance de obra</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+          <div><label>Meta total ($ — enganche + cierre)</label><input type="number" id="meta" value="24000" min="0" oninput="ahorro()"></div>
+          <div><label>Ya ahorrado ($)</label><input type="number" id="ahorrado" value="8500" min="0" oninput="ahorro()"></div>
+          <div><label>Ahorro mensual ($)</label><input type="number" id="mensual" value="650" min="1" oninput="ahorro()"></div>
+        </div>
+        <div class="cota-line"></div>
+        <div class="barra-obra"><div id="barraFill" style="width:0%"></div><b id="barraTxt">0%</b></div>
+        <div class="etapas">
+          <div id="e1">🧱<br>Cimientos<br>0–25%</div>
+          <div id="e2">🏗️<br>Paredes<br>25–50%</div>
+          <div id="e3">🏠<br>Techo<br>50–75%</div>
+          <div id="e4">🔑<br>Llaves<br>75–100%</div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><b id="kFalta">$0</b><span>Te falta</span></div>
+          <div class="kpi"><b id="kMeses">0</b><span>Meses a este ritmo</span></div>
+          <div class="kpi"><b id="kFecha">—</b><span>Meta alcanzada (est.)</span></div>
+        </div>
+        <div class="casa" id="casaMsg">Tu casa se construye mes a mes: cada depósito es un bloque más.</div>
+      </div>
+
+      <div class="hoja">
+        <h2><span class="num">3</span>Medidor de preparación de crédito</h2>
+        <p style="font-size:13px;color:var(--gris)">Auto-reporte <b>honesto</b>: marca solo lo que sea verdad hoy. Esto <b>no calcula ni promete ningún puntaje</b> — mide tu preparación con los hábitos que los prestamistas suelen mirar.</p>
+        <div id="preguntas"></div>
+        <div class="medidor"><div class="aguja" id="aguja" style="left:2%"></div></div>
+        <p style="font-size:14px"><b id="credTxt">Preparación: 0/100</b> — <span id="credMsg">Marca tus hábitos reales para ver tu nivel.</span></p>
+      </div>
+
+      <div class="hoja">
+        <h2><span class="num">4</span>Cronograma del proceso — de la pre-aprobación al cierre</h2>
+        <p style="font-size:13px;color:var(--gris)">Marca cada paso y ponle fecha. Tu progreso se guarda solo en este navegador (localStorage).</p>
+        <div id="steps"></div>
+        <div class="cota-line"></div>
+        <p style="font-size:15px"><b id="progTxt">0 de 8 pasos completados</b></p>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn ghost" onclick="window.print()">🖨 Imprimir mi cronograma</button>
+          <button class="btn ghost" onclick="reiniciar()">↺ Restablecer ejemplo (Familia Rivera)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>HomeReady Planner — Planificador de tu primera casa · Herramienta educativa de planificación; no es asesoría hipotecaria ni cotización de préstamo. Todos los números son estimados. Tus datos se guardan solo en tu navegador.</footer>
+</div>
+
+<script>
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var fmt=function(n){return "$"+Math.round(n).toLocaleString("en-US")};
+var LS="homeready_v1";
+
+/* ---------- 1) CALCULADORA ---------- */
+function pagoPI(principal,tasaAnual,anos){
+  var r=tasaAnual/100/12, n=anos*12;
+  if(principal<=0) return 0;
+  if(r===0) return principal/n;
+  var f=Math.pow(1+r,n);
+  return principal*r*f/(f-1);
+}
+function calcular(){
+  var ingreso=parseFloat($("ingreso").value)||0;
+  var deudas=parseFloat($("deudas").value)||0;
+  var enganche=parseFloat($("enganche").value)||0;
+  var tasa=parseFloat($("tasa").value)||0;
+  var anos=parseFloat($("plazo").value)||30;
+  var taxPct=parseFloat($("impuestos").value)||0;
+  var seguro=parseFloat($("seguro").value)||0;
+  var incMes=ingreso/12;
+  var cap=Math.max(0,Math.min(incMes*0.28, incMes*0.36-deudas));
+  // Buscar el precio máximo cuyo pago total (PI+impuestos+seguro+PMI) <= cap, por bisección
+  var lo=enganche, hi=enganche+2000000, precio=enganche;
+  function totalPara(p){
+    var prest=p-enganche;
+    var pmi=(enganche < p*0.20 && prest>0) ? prest*0.005/12 : 0;
+    return {total:pagoPI(prest,tasa,anos)+p*taxPct/100/12+seguro+pmi, prest:prest, pmi:pmi};
+  }
+  if(cap>seguro){
+    for(var i=0;i<60;i++){
+      var mid=(lo+hi)/2;
+      if(totalPara(mid).total<=cap){precio=mid;lo=mid}else{hi=mid}
+    }
+  }
+  var t=totalPara(precio);
+  $("rPrecio").textContent=fmt(precio);
+  $("rCap").textContent=fmt(cap);
+  $("rPrestamo").textContent=fmt(t.prest);
+  $("rPI").textContent=fmt(pagoPI(t.prest,tasa,anos));
+  $("rTax").textContent=fmt(precio*taxPct/100/12);
+  $("rIns").textContent=fmt(seguro);
+  $("rPMI").textContent=fmt(t.pmi);
+  $("rTotal").textContent=fmt(t.total);
+  $("rNota").textContent = t.pmi>0
+    ? "Nota: como el enganche es menor del 20% del precio, se incluyó PMI estimado (0.5% anual del préstamo). Con 20% o más de enganche, el PMI estimado desaparece."
+    : "Nota: enganche de 20% o más — sin PMI estimado. Estimados educativos, no una cotización.";
+  guardar();
+}
+
+/* ---------- 2) AHORRO ---------- */
+function ahorro(){
+  var meta=parseFloat($("meta").value)||0;
+  var ahorrado=parseFloat($("ahorrado").value)||0;
+  var mensual=parseFloat($("mensual").value)||0;
+  var pct=meta>0?Math.min(100,ahorrado/meta*100):0;
+  $("barraFill").style.width=pct+"%";
+  $("barraTxt").textContent=pct.toFixed(1)+"% de la obra";
+  var falta=Math.max(0,meta-ahorrado);
+  var meses=(falta===0)?0:(mensual>0?Math.ceil(falta/mensual):Infinity);
+  $("kFalta").textContent=fmt(falta);
+  $("kMeses").textContent=(meses===Infinity)?"—":meses;
+  if(meses===Infinity||meses===0){$("kFecha").textContent=(falta===0)?"¡Hoy!":"—"}
+  else{var d=new Date(); d.setMonth(d.getMonth()+meses); $("kFecha").textContent=d.toLocaleDateString("es-US",{month:"short",year:"numeric"})}
+  ["e1","e2","e3","e4"].forEach(function(e){$(e).className=""});
+  var etapa=pct<25?0:pct<50?1:pct<75?2:3;
+  $("e"+(etapa+1)).className="on";
+  var msgs=["Estás en los cimientos: cada depósito cuenta, aunque sea pequeño.","Paredes arriba: ya pasaste el primer cuarto de la meta.","Techo puesto: más de la mitad del camino está hecho.","Casi tienes las llaves: el último tramo es el de la disciplina."];
+  $("casaMsg").textContent=(falta===0)?"🔑 ¡Meta completa! Tu enganche está listo — pasa al cronograma de compra.":msgs[etapa]+" Te faltan "+fmt(falta)+(meses!==Infinity&&meses>0?(" — a "+fmt(mensual)+"/mes llegas en ~"+meses+" meses."):"");
+  guardar();
+}
+
+/* ---------- 3) CRÉDITO (auto-reporte honesto) ---------- */
+var PREGUNTAS=[
+  ["Pago todas mis cuentas a tiempo desde hace 12 meses o más",20],
+  ["Uso menos del 30% del límite de mis tarjetas de crédito",20],
+  ["No tengo cuentas en colecciones ni cargos vencidos sin resolver",15],
+  ["No he abierto muchas cuentas nuevas en los últimos 6 meses",10],
+  ["Tengo historial de crédito de 2 años o más",10],
+  ["Reviso mi reporte de crédito al menos 1 vez al año y corrijo errores",10],
+  ["Mis ingresos son estables y puedo documentarlos (talonarios, taxes)",15]
+];
+function renderPreguntas(marcadas){
+  $("preguntas").innerHTML=PREGUNTAS.map(function(p,i){
+    return '<label class="pregunta" style="text-transform:none;letter-spacing:0;color:var(--tinta);font-size:14px"><input type="checkbox" data-p="'+i+'" '+(marcadas&&marcadas[i]?"checked":"")+' onchange="credito()"><span>'+p[0]+' <b>(+'+p[1]+')</b></span></label>';
+  }).join("");
+}
+function credito(){
+  var total=0, marcadas=[];
+  document.querySelectorAll("#preguntas input[type=checkbox]").forEach(function(c){marcadas.push(c.checked); if(c.checked) total+=PREGUNTAS[parseInt(c.getAttribute("data-p"),10)][1]});
+  $("aguja").style.left="calc("+(2+total*0.96)+"% - 2px)";
+  $("credTxt").textContent="Preparación: "+total+"/100";
+  $("credMsg").textContent= total<40?"Zona de cimientos: trabaja primero los pagos a tiempo y bajar las tarjetas; la casa se planifica mejor sin prisa."
+    : total<70?"Zona de paredes: vas por buen camino — ataca el punto más débil de la lista antes de pedir pre-aprobación."
+    :"Zona de techo: hábitos sólidos para sentarte con un prestamista y pedir tu pre-aprobación.";
+  guardar(marcadas);
+}
+
+/* ---------- 4) CHECKLIST DEL PROCESO ---------- */
+var STEPS=[
+  ["Revisar crédito y corregir errores","Pide tus reportes gratuitos y disputa lo que no sea tuyo."],
+  ["Juntar documentos","ID, talonarios de pago, W-2 / taxes de 2 años, estados de cuenta."],
+  ["Pre-aprobación con un prestamista","Carta de pre-aprobación: define tu precio real de búsqueda."],
+  ["Buscar casa y hacer oferta","Con tu carta en mano, tu oferta pesa más."],
+  ["Inspección de la casa","Inspección profesional antes de seguir adelante."],
+  ["Tasación (appraisal)","El banco tasa la casa; el préstamo depende de ese valor."],
+  ["Aprobación final del préstamo (underwriting)","El prestamista verifica todo y da el 'clear to close'."],
+  ["Cierre y llaves 🔑","Firma, costos de cierre y entrega de llaves."]
+];
+function renderSteps(datos){
+  $("steps").innerHTML=STEPS.map(function(s,i){
+    var d=(datos&&datos[i])||{};
+    return '<div class="step'+(d.done?" done":"")+'"><input type="checkbox" data-s="'+i+'" '+(d.done?"checked":"")+' onchange="stepsChanged()"><div style="flex:1"><div class="st">'+(i+1)+'. '+s[0]+(d.done?'<span class="badge">Hecho</span>':"")+'</div><div class="sd">'+s[1]+'</div></div><input type="date" data-f="'+i+'" value="'+(d.fecha||"")+'" onchange="stepsChanged()"></div>';
+  }).join("");
+  stepsChanged(true);
+}
+function leerSteps(){
+  var out=[];
+  document.querySelectorAll("#steps .step").forEach(function(row,i){
+    out.push({done:row.querySelector("input[type=checkbox]").checked, fecha:row.querySelector("input[type=date]").value});
+  });
+  return out;
+}
+function stepsChanged(sinGuardar){
+  var datos=leerSteps(), hechos=datos.filter(function(d){return d.done}).length;
+  document.querySelectorAll("#steps .step").forEach(function(row,i){row.className="step"+(datos[i].done?" done":"")});
+  $("progTxt").textContent=hechos+" de "+STEPS.length+" pasos completados"+(hechos===STEPS.length?" — ¡a mudarse! 🎉":"");
+  if(!sinGuardar) guardar();
+}
+
+/* ---------- PERSISTENCIA / LICENCIA ---------- */
+function estadoActual(marcadasCredito){
+  var marcadas=marcadasCredito;
+  if(!marcadas){marcadas=[]; document.querySelectorAll("#preguntas input[type=checkbox]").forEach(function(c){marcadas.push(c.checked)})}
+  return {ingreso:$("ingreso").value,deudas:$("deudas").value,enganche:$("enganche").value,tasa:$("tasa").value,plazo:$("plazo").value,impuestos:$("impuestos").value,seguro:$("seguro").value,meta:$("meta").value,ahorrado:$("ahorrado").value,mensual:$("mensual").value,credito:marcadas,steps:leerSteps(),licencia:localStorage.getItem(LS+"_lic")||""};
+}
+function guardar(marcadas){ try{localStorage.setItem(LS,JSON.stringify(estadoActual(marcadas)))}catch(e){} }
+function aplicar(e){
+  if(!e) return;
+  ["ingreso","deudas","enganche","tasa","plazo","impuestos","seguro","meta","ahorrado","mensual"].forEach(function(k){if(e[k]!==undefined) $(k).value=e[k]});
+  renderPreguntas(e.credito||[]); renderSteps(e.steps||[]);
+  calcular(); ahorro(); credito();
+}
+function reiniciar(){ localStorage.removeItem(LS); location.reload(); }
+function activarCodigo(){
+  var c=($("codigo").value||"").trim().toUpperCase();
+  if(/^HR-PRO-[A-Z0-9]{4,}$/.test(c)){localStorage.setItem(LS+"_lic","PRO"); $("licMsg").textContent="✅ Nivel Completo ($19.99) activado en este navegador."; $("licMsg").style.color="var(--verde)"}
+  else if(/^HR-PLUS-[A-Z0-9]{4,}$/.test(c)){localStorage.setItem(LS+"_lic","PLUS"); desbloquearEstados(); $("licMsg").textContent="✅ Nivel Completo + Asistencia ($34.99) activado: módulo de estados desbloqueado."; $("licMsg").style.color="var(--verde)"}
+  else{$("licMsg").textContent="⚠️ Código no reconocido. Revisa el código que recibiste por email tras tu compra."; $("licMsg").style.color="var(--rojo)"}
+  guardar();
+}
+function desbloquearEstados(){
+  $("moduloEstados").className="casa";
+  $("moduloEstados").innerHTML="<b>📍 Módulo de programas de asistencia por estado — DESBLOQUEADO</b><br>"+
+  "Cómo usarlo: 1) Entra a la <b>agencia estatal de vivienda</b> de tu estado (busca «[tu estado] housing finance agency»). 2) Pregunta por: programas para <b>primeros compradores</b>, ayuda de <b>enganche (DPA)</b> como segunda hipoteca diferida o perdonable, y ayuda de <b>costos de cierre</b>. 3) Verifica requisitos típicos: límites de ingreso del hogar, precio máximo de la casa, curso de educación para compradores y usar la casa como residencia principal. 4) Confirma siempre montos y vigencia en la fuente oficial del estado — los programas cambian y esta guía no sustituye esa verificación.";
+}
+function exportar(){
+  var lic=localStorage.getItem(LS+"_lic")||"";
+  if(!lic){$("licMsg").textContent="⚠️ Exportar planes es del nivel Completo ($19.99). La prueba gratis guarda 1 plan en este navegador."; $("licMsg").style.color="var(--rojo)"; return}
+  var blob=new Blob([JSON.stringify(estadoActual(),null,2)],{type:"application/json"});
+  var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="mi-plan-homeready.json"; a.click();
+}
+function importar(ev){
+  var f=ev.target.files[0]; if(!f) return;
+  var r=new FileReader(); r.onload=function(){ try{aplicar(JSON.parse(r.result))}catch(e){alert("Archivo no válido")} }; r.readAsText(f);
+}
+
+/* ---------- ARRANQUE: ejemplo precargado (Familia Rivera) o lo guardado ---------- */
+(function(){
+  var guardado=null;
+  try{guardado=JSON.parse(localStorage.getItem(LS)||"null")}catch(e){}
+  if(guardado){aplicar(guardado)}
+  else{
+    var ejemploSteps=[{done:true,fecha:"2026-11-03"},{done:true,fecha:"2026-11-10"},{done:false,fecha:""},{done:false,fecha:""},{done:false,fecha:""},{done:false,fecha:""},{done:false,fecha:""},{done:false,fecha:""}];
+    renderPreguntas([true,true,false,true,true,false,true]);
+    renderSteps(ejemploSteps);
+    calcular(); ahorro(); credito();
+  }
+  if((localStorage.getItem(LS+"_lic")||"")==="PLUS") desbloquearEstados();
+})();
+</script>
+</body>
+</html>
